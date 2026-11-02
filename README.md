@@ -63,7 +63,10 @@ Each run writes per-question results, token use, cost and timing to `evals/resul
 
 | Model | Effort | Accuracy | Cost per run | Mean time per question |
 |---|---|---|---|---|
-| _to be filled from the first runs_ | | | | |
+| Claude Opus 5.5 | medium | 25/25 | $0.21 | 4.5s |
+| Claude Sonnet 5.5 | low | 25/25 | $0.08 | 2.8s |
+
+Both answered every question correctly, with Sonnet at low effort costing about 37% as much and answering faster, so it's the better default for this workload. Since both score 100%, these questions don't yet separate the models; harder questions are the next step (see below).
 
 ## Running it
 
