@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: leadflow_mcp
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost/leadflow_mcp
+      READONLY_DATABASE_URL: postgresql://leadflow_readonly:ci-readonly@localhost/leadflow_mcp
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Seed database and create read-only role
+        run: |
+          python scripts/seed.py
+          psql -h localhost -U postgres -d leadflow_mcp -v readonly_password="'ci-readonly'" -f db/readonly_role.sql
+      - run: pytest -q
+      - name: Check every reference query still runs
+        run: python evals/run.py --reference-only
+
+  eval:
+    # Spends API credit, so only on main and only when the key is configured.
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: leadflow_mcp
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost/leadflow_mcp
+      READONLY_DATABASE_URL: postgresql://leadflow_readonly:ci-readonly@localhost/leadflow_mcp
+      PGPASSWORD: postgres
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: |
+          python scripts/seed.py
+          psql -h localhost -U postgres -d leadflow_mcp -v readonly_password="'ci-readonly'" -f db/readonly_role.sql
+      - name: Run evals
+        if: env.ANTHROPIC_API_KEY != ''
+        run: python evals/run.py --min-accuracy 0.85
+      - uses: actions/upload-artifact@v4
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        with:
+          name: eval-results
+          path: evals/results/

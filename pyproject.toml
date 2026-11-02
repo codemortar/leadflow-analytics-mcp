@@ -1,0 +1,29 @@
+[project]
+name = "leadflow-analytics-mcp"
+version = "0.1.0"
+description = "MCP server for plain-English, read-only analytics over a lead-generation business's data, with an evaluation suite"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=2.3,<3",
+    "anthropic>=2.3,<3",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.7",
+    "pyyaml>=6",
+    "sqlglot>=30,<31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+leadflow-mcp = "leadflow_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
